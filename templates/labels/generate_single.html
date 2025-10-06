@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Generate · {{ template.name }}{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <h1 class="h5 mb-3">Generate Single Label · {{ template.name }}</h1>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      {% for f in field_defs %}
+        <div class="col-md-6">
+          <label class="form-label">{{ f.name }}</label>
+          {% if f.type == 'IMAGE' %}
+            <input type="url" name="{{ f.key }}" class="form-control" placeholder="https://example.com/image.png">
+            <div class="form-text">Paste an image URL (we’ll fetch and place it).</div>
+          {% else %}
+            <input type="text" name="{{ f.key }}" class="form-control">
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="col-md-3">
+        <label class="form-label">Code Type</label>
+        <select name="code_type" class="form-select">
+          <option value="BARCODE">Barcode</option>
+          <option value="QRCODE">QR Code</option>
+        </select>
+      </div>
+      <div class="col-md-9">
+        <label class="form-label">Code Value (optional)</label>
+        <input type="text" name="code_value" class="form-control" placeholder="Defaults to SKU if provided">
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+      <button class="btn btn-primary">Generate</button>
+      <a class="btn btn-outline-secondary" href="{% url 'labels:generate_choose' %}">Back</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

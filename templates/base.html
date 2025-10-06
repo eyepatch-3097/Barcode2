@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Barcode Labeler{% endblock %}</title>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg bg-white border-bottom">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{% url 'accounts:post_login' %}">Barcode2.0</a>
+
+    <div class="ms-auto d-flex align-items-center gap-2">
+      {% if user.is_authenticated %}
+        <div class="text-end small me-2">
+          <div>{{ user.email }}</div>
+          <div class="text-muted">
+            {% if CURRENT_ROLE %}<span class="badge text-bg-secondary">{{ CURRENT_ROLE }}</span>{% endif %}
+            {% if CURRENT_ORG %}<span class="ms-1">{{ CURRENT_ORG.name }}</span>{% endif %}
+            {% if CURRENT_WORKSPACE %} · <strong>{{ CURRENT_WORKSPACE.name }}</strong>{% endif %}
+          </div>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'workspaces:choose' %}">Switch workspace</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'accounts:logout' %}">Logout</a>
+      {% else %}
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'accounts:login' %}">Login</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'accounts:signup' %}">Sign up</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+
+  <main class="container py-4">
+    {% if messages %}
+      <div class="mb-3">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} mb-2" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

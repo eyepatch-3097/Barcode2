@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Preview · {{ template.name }}{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">Preview: {{ template.name }}</h1>
+    <div class="text-muted small">Size: {{ template.width_mm }}×{{ template.height_mm }} mm @ {{ template.dpi }} DPI</div>
+  </div>
+
+  <div id="canvas" style="position:relative; border:1px dashed #999; background:#fff;"></div>
+  <div class="text-muted small mt-2">This preview uses the template’s schema for exact layout.</div>
+
+  <hr class="my-4">
+  <h2 class="h6">Fields</h2>
+  <ul class="mb-3">
+    {% for f in fields %}
+      <li>{{ f.name }} <span class="text-muted">({{ f.key }}, {{ f.field_type }})</span></li>
+    {% empty %}
+      <li class="text-muted">No structured fields (custom template). Elements are defined in the canvas schema.</li>
+    {% endfor %}
+  </ul>
+
+  <a class="btn btn-sm btn-outline-primary" href="{% url 'labels:design_home' %}">Back</a>
+</div>
+
+<script>
+const DPI = {{ template.dpi }};
+const WIDTH_MM = {{ template.width_mm }};
+const HEIGHT_MM = {{ template.height_mm }};
+const mm2px = (mm) => Math.round(mm * DPI / 25.4);
+const schema = {{ template.schema|default:"{}"|safe }};
+const canvas = document.getElementById('canvas');
+canvas.style.width = mm2px(WIDTH_MM) + 'px';
+canvas.style.height = mm2px(HEIGHT_MM) + 'px';
+
+function render(){
+  canvas.innerHTML = '';
+  const els = (schema && schema.elements) ? schema.elements : [];
+  els.forEach(el=>{
+    const node = document.createElement('div');
+    node.style.position = 'absolute';
+    node.style.left = (el.x||0)+'px';
+    node.style.top = (el.y||0)+'px';
+    node.style.width = (el.w||80)+'px';
+    node.style.height = (el.h||20)+'px';
+    node.style.fontSize = (el.fontSize||12)+'px';
+    node.style.border = '1px solid rgba(0,0,0,.15)';
+    node.style.padding = '2px 4px';
+    node.style.overflow = 'hidden';
+    node.style.whiteSpace = 'nowrap';
+    node.style.textOverflow = 'ellipsis';
+
+    let label = '';
+    if(el.type==='text'){ label = el.value || el.dataKey || 'Text'; }
+    if(el.type==='image'){ label = '[IMG] '+(el.dataKey || 'image'); }
+    if(el.type==='barcode'){ label = '[BARCODE] '+(el.dataKey || 'code_value'); }
+    if(el.type==='qrcode'){ label = '[QR] '+(el.dataKey || 'code_value'); }
+    node.textContent = label;
+    canvas.appendChild(node);
+  });
+}
+render();
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}New Template{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <h1 class="h5 mb-3">Create Custom Template</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Template name</label>
+        <input type="text" name="name" class="form-control" placeholder="SKU Mini Label">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Width (mm)</label>
+        <input type="number" step="0.1" name="width_mm" class="form-control" value="50">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Height (mm)</label>
+        <input type="number" step="0.1" name="height_mm" class="form-control" value="30">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">DPI</label>
+        <input type="number" name="dpi" class="form-control" value="300">
+      </div>
+    </div>
+    <div class="mt-3">
+      <button class="btn btn-primary">Create</button>
+      <a class="btn btn-outline-secondary" href="{% url 'labels:design_home' %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

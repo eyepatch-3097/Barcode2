@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Edit · {{ template.name }}{% endblock %}
+{% block content %}
+<style>
+  .canvas-wrap { display:flex; gap:1rem; }
+  .toolbox, .inspector { width:260px; }
+  .label-canvas {
+    position: relative;
+    background: #fff;
+    border: 1px dashed #999;
+    overflow: hidden;
+  }
+  .el { position:absolute; border:1px solid transparent; cursor:move; padding:2px 4px; }
+  .el.selected { border-color:#0d6efd; background: rgba(13,110,253,.05); }
+  .ghost { opacity: .6; }
+</style>
+
+<div class="p-3 bg-white border rounded">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">Editing: {{ template.name }}</h1>
+    <div class="d-flex gap-2">
+      <button id="saveBtn" class="btn btn-sm btn-primary">Save</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'labels:design_home' %}">Back</a>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="toolbox">
+      <div class="border rounded p-2">
+        <div class="fw-semibold mb-2">Add field</div>
+        <button class="btn btn-sm btn-outline-primary w-100 mb-2" data-add="text">Text</button>
+        <button class="btn btn-sm btn-outline-primary w-100 mb-2" data-add="barcode">Barcode</button>
+        <button class="btn btn-sm btn-outline-primary w-100" data-add="qrcode">QR Code</button>
+        <button class="btn btn-sm btn-outline-primary w-100 mb-2" data-add="image">Image</button>
+      </div>
+    </div>
+
+    <div>
+      {% comment %} Convert mm to px: px = mm * dpi / 25.4 {% endcomment %}
+      <div id="canvas" class="label-canvas"></div>
+      <div class="text-muted small mt-2">
+        Size: {{ template.width_mm }}mm × {{ template.height_mm }}mm @ {{ template.dpi }} DPI
+      </div>
+    </div>
+
+    <div class="inspector">
+      <div class="border rounded p-2">
+        <div class="fw-semibold mb-2">Properties</div>
+        <div id="noSel" class="text-muted small">Select an element to edit.</div>
+        <div id="inspectorForm" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Type</label>
+            <input id="i_type" class="form-control form-control-sm" disabled>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Static Text / Data Key</label>
+            <input id="i_value" class="form-control form-control-sm" placeholder="e.g., Static: 'ACME', or Data key: 'sku'">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Font size (px)</label>
+            <input id="i_font" type="number" class="form-control form-control-sm" value="12">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Width (px)</label>
+            <input id="i_w" type="number" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Height (px)</label>
+            <input id="i_h" type="number" class="form-control form-control-sm">
+          </div>
+          <button id="deleteBtn" class="btn btn-sm btn-outline-danger">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const tmpl = {{ template.schema|default:"{}"|safe }};
+const DPI = {{ template.dpi }};
+const WIDTH_MM = {{ template.width_mm }};
+const HEIGHT_MM = {{ template.height_mm }};
+const mm2px = (mm) => Math.round(mm * DPI / 25.4);
+
+const canvas = document.getElementById('canvas');
+canvas.style.width = mm2px(WIDTH_MM) + 'px';
+canvas.style.height = mm2px(HEIGHT_MM) + 'px';
+
+let elements = (tmpl.elements || []);
+let selectedId = null;
+
+function render() {
+  canvas.innerHTML = '';
+  elements.forEach(el => {
+    const node = document.createElement('div');
+    node.className = 'el' + (el.id === selectedId ? ' selected' : '');
+    node.style.left = (el.x||0) + 'px';
+    node.style.top = (el.y||0) + 'px';
+    node.style.width = (el.w||80) + 'px';
+    node.style.height = (el.h||20) + 'px';
+    node.style.fontSize = (el.fontSize||12) + 'px';
+    node.dataset.id = el.id;
+
+    if (el.type === 'text') node.textContent = el.value || el.dataKey || 'Text';
+    if (el.type === 'barcode') node.textContent = '[BARCODE] ' + (el.dataKey || 'value');
+    if (el.type === 'qrcode') node.textContent = '[QR] ' + (el.dataKey || 'value');
+    if (el.type === 'image') node.textContent = '[IMG] ' + (el.dataKey || 'image');
+
+    node.addEventListener('mousedown', startDrag);
+    node.addEventListener('click', () => select(el.id));
+    canvas.appendChild(node);
+  });
+}
+function uid(){ return 'e'+Math.random().toString(36).slice(2,9); }
+
+document.querySelectorAll('[data-add]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const type = btn.dataset.add;
+    const el = { id: uid(), type, x: 10, y: 10, w: 100, h: 24, fontSize: 12, value: '', dataKey: '' };
+
+    // Larger default for non-text
+    if (type !== 'text') { el.w = 120; el.h = 40; }
+
+    // Even larger default for images (logos/product photos)
+    if (type === 'image') { el.w = 100; el.h = 80; }
+
+    elements.push(el);
+    selectedId = el.id;
+    render(); syncInspector();
+  });
+});
+
+let drag = null;
+function startDrag(e){
+  const id = e.currentTarget.dataset.id;
+  const rect = canvas.getBoundingClientRect();
+  const el = elements.find(x=>x.id===id);
+  drag = { id, offsetX: e.clientX - rect.left - el.x, offsetY: e.clientY - rect.top - el.y };
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', endDrag);
+}
+function onDrag(e){
+  if(!drag) return;
+  const rect = canvas.getBoundingClientRect();
+  const el = elements.find(x=>x.id===drag.id);
+  el.x = Math.max(0, Math.min(e.clientX - rect.left - drag.offsetX, rect.width - (el.w||80)));
+  el.y = Math.max(0, Math.min(e.clientY - rect.top - drag.offsetY, rect.height - (el.h||20)));
+  render(); select(el.id, true);
+}
+function endDrag(){ drag=null; document.removeEventListener('mousemove', onDrag); document.removeEventListener('mouseup', endDrag); }
+
+const noSel = document.getElementById('noSel');
+const pane = document.getElementById('inspectorForm');
+const i_type = document.getElementById('i_type');
+const i_value = document.getElementById('i_value');
+const i_font = document.getElementById('i_font');
+const i_w = document.getElementById('i_w');
+const i_h = document.getElementById('i_h');
+const delBtn = document.getElementById('deleteBtn');
+
+function select(id, keep=false){
+  selectedId = id;
+  if(!keep) render();
+  syncInspector();
+}
+
+function syncInspector(){
+  const el = elements.find(x=>x.id===selectedId);
+  if(!el){ noSel.style.display='block'; pane.style.display='none'; return; }
+  noSel.style.display='none'; pane.style.display='block';
+  i_type.value = el.type;
+  i_value.value = el.value || el.dataKey || '';
+  i_font.value = el.fontSize || 12;
+  i_w.value = el.w || 80;
+  i_h.value = el.h || 20;
+}
+
+[i_value,i_font,i_w,i_h].forEach(inp=>{
+  inp.addEventListener('input', ()=>{
+    const el = elements.find(x=>x.id===selectedId);
+    if(!el) return;
+    if(inp===i_value){
+      // heuristic: {static} if wrapped in quotes, else treat as data key
+      if(/^'.*'$/.test(inp.value) || /^".*"$/.test(inp.value)){ el.value = inp.value.slice(1,-1); el.dataKey=''; }
+      else { el.dataKey = inp.value; el.value=''; }
+    }
+    if(inp===i_font) el.fontSize = parseInt(inp.value||12,10);
+    if(inp===i_w) el.w = parseInt(inp.value||80,10);
+    if(inp===i_h) el.h = parseInt(inp.value||20,10);
+    render(); select(el.id, true);
+  });
+});
+
+delBtn.addEventListener('click', ()=>{
+  elements = elements.filter(x=>x.id!==selectedId);
+  selectedId = null; render(); syncInspector();
+});
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const body = new URLSearchParams();
+  body.append('elements_json', JSON.stringify(elements));
+  const resp = await fetch('{% url "labels:template_save_schema" template.id %}', {
+    method:'POST',
+    headers:{'X-CSRFToken':'{{ csrf_token }}'},
+    body
+  });
+  const data = await resp.json();
+  if(data.ok){ alert('Saved'); } else { alert('Save failed: '+data.error); }
+});
+
+render(); syncInspector();
+</script>
+{% endblock %}

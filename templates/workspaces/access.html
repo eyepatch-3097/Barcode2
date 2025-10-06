@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Manage Access · {{ workspace.name }}{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">Manage Access — {{ workspace.name }}</h1>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'workspaces:choose' %}">Back to Workspaces</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th>User</th><th>Role</th><th>Access</th><th class="text-end">Action</th></tr></thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td>{{ m.user.email }}</td>
+          <td>
+            <span class="badge text-bg-secondary">{{ m.role }}</span>
+          </td>
+          <td>
+            {% if m.id in granted_ids %}
+              <span class="badge text-bg-success">Has access</span>
+            {% else %}
+              <span class="badge text-bg-light text-muted">No access</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if m.id in granted_ids %}
+              <a class="btn btn-sm btn-outline-danger" href="?revoke={{ m.id }}">Revoke</a>
+            {% else %}
+              <a class="btn btn-sm btn-outline-primary" href="?grant={{ m.id }}">Grant</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-muted">No active members in this organization.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Label Created{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <h1 class="h5 mb-3">Label Generated</h1>
+  {% with media=MEDIA_URL|default:"/media/" %}
+    {% if instance.png_path %}
+      <div class="mb-3">
+        <img
+          src="{{ media }}{{ instance.png_path }}?v={{ instance.id }}"
+          alt="label"
+          style="max-width:100%;height:auto;border:1px solid #ddd;"
+        >
+      </div>
+      <a class="btn btn-sm btn-primary"
+         href="{{ media }}{{ instance.png_path }}?v={{ instance.id }}"
+         download>
+        Download PNG
+      </a>
+      <a class="btn btn-sm btn-outline-secondary ms-2"
+         href="{% url 'labels:generate_choose' %}">
+        Generate another
+      </a>
+    {% else %}
+      <p class="text-danger mb-0">No image path saved.</p>
+    {% endif %}
+  {% endwith %}
+</div>
+{% endblock %}

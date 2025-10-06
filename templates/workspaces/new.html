@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Create Workspace{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <h1 class="h5 mb-3">Create a Workspace</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Name</label>
+      {{ form.name }}
+      {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <button class="btn btn-primary">Create</button>
+    <a class="btn btn-outline-secondary" href="{% url 'workspaces:choose' %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

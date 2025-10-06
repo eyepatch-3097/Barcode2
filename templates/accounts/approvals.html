@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Pending Approvals{% endblock %}
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">Pending Members</h1>
+    <a href="{% url 'accounts:post_login' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+  </div>
+  {% if pending %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead><tr><th>User</th><th>Organization</th><th>Requested</th><th></th></tr></thead>
+        <tbody>
+        {% for m in pending %}
+          <tr>
+            <td>{{ m.user.email }}</td>
+            <td>{{ m.organization.name }} ({{ m.organization.domain }})</td>
+            <td>{{ m.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-primary" href="{% url 'accounts:approve_member' m.id %}">Approve</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="mb-0 text-muted">No pending members.</p>
+  {% endif %}
+</div>
+{% endblock %}
