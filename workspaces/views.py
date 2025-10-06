@@ -8,11 +8,22 @@ from .forms import WorkspaceCreateForm
 @login_required
 def choose_workspace(request):
     # all ACTIVE memberships for this user
-    memberships = Membership.objects.filter(user=request.user, status=Membership.Status.ACTIVE)\
-                                    .select_related("organization")
+    memberships = (
+        Membership.objects
+        .filter(user=request.user, status=Membership.Status.ACTIVE)
+        .select_related("organization")
+    )
+
+    # compute admin flag for this user
+    is_admin = memberships.filter(role=Membership.Role.ADMIN).exists()
+
     # workspaces the user can access (via WorkspaceAccess)
-    access_qs = WorkspaceAccess.objects.filter(membership__in=memberships)\
-                                       .select_related("workspace", "workspace__organization", "membership")
+    access_qs = (
+        WorkspaceAccess.objects
+        .filter(membership__in=memberships)
+        .select_related("workspace", "workspace__organization", "membership")
+    )
+
     # group by org for display
     org_map = {}
     for acc in access_qs:
@@ -24,7 +35,15 @@ def choose_workspace(request):
         "Admins can create more workspaces from the workspace settings (coming soon).",
         "If you don't see a workspace, ask your org admin to grant access.",
     ]
-    return render(request, "workspaces/choose.html", {"org_map": org_map, "faq": faq})
+    return render(
+        request,
+        "workspaces/choose.html",
+        {
+            "org_map": org_map,
+            "faq": faq,
+            "is_admin": is_admin,   # <-- IMPORTANT: pass it to the template
+        },
+    )
 
 @login_required
 def select_workspace(request, workspace_id: int):
@@ -54,14 +73,27 @@ def _current_workspace(request):
 
 @login_required
 def create_workspace(request):
-    # Must be ADMIN in the current org
+    # Prefer the current workspace's org if available
     current_ws = _current_workspace(request)
-    if not current_ws:
-        return redirect("workspaces:choose")
-    org = current_ws.organization
+    if current_ws:
+        org = current_ws.organization
+    else:
+        # Fall back to the first ACTIVE ADMIN membership org
+        admin_mem = (
+            Membership.objects
+            .filter(user=request.user, role=Membership.Role.ADMIN, status=Membership.Status.ACTIVE)
+            .select_related("organization")
+            .first()
+        )
+        if not admin_mem:
+            messages.error(request, "Only org admins can create workspaces.")
+            return redirect("workspaces:choose")
+        org = admin_mem.organization
 
+    # Confirm the user is an ADMIN of this org (defensive)
     is_admin = Membership.objects.filter(
-        user=request.user, organization=org, role=Membership.Role.ADMIN, status=Membership.Status.ACTIVE
+        user=request.user, organization=org,
+        role=Membership.Role.ADMIN, status=Membership.Status.ACTIVE
     ).exists()
     if not is_admin:
         messages.error(request, "Only org admins can create workspaces.")
@@ -74,17 +106,18 @@ def create_workspace(request):
             slug = form.cleaned_data["slug"]
             # Ensure unique per org
             if Workspace.objects.filter(organization=org, slug=slug).exists():
-                form.add_error("name", "A workspace with a similar name already exists.")
+                form.add_error("slug", "A workspace with this slug already exists.")  # was 'name' before
             else:
                 ws = Workspace.objects.create(
                     organization=org, name=name, slug=slug, created_by=request.user
                 )
-                # Give all ACTIVE ADMINS access automatically (and the creator for sure)
+                # Give all ACTIVE ADMINS access automatically (including the creator)
                 admin_memberships = Membership.objects.filter(
                     organization=org, role=Membership.Role.ADMIN, status=Membership.Status.ACTIVE
                 )
                 for m in admin_memberships:
                     WorkspaceAccess.objects.get_or_create(membership=m, workspace=ws)
+
                 messages.success(request, f'Workspace "{name}" created.')
                 return redirect("workspaces:access", workspace_id=ws.id)
     else:
