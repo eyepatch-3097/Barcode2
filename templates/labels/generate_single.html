@@ -18,6 +18,17 @@
           {% endif %}
         </div>
       {% endfor %}
+      {% if code_fields %}
+  <hr class="my-3">
+  <h6>Codes</h6>
+  {% for cf in code_fields %}
+    <div class="mb-3">
+      <label class="form-label">{{ cf.label }}</label>
+      <input type="text" class="form-control" name="{{ cf.key }}" placeholder="{{ cf.key }}" required>
+      <div class="form-text">This will be encoded as a {{ cf.kind|lower }} element in the template.</div>
+    </div>
+  {% endfor %}
+{% endif %}
 
       <div class="col-md-3">
         <label class="form-label">Code Type</label>
