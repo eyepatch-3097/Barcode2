@@ -13,4 +13,5 @@ urlpatterns = [
     path("templates/<int:pk>/csv/", views.template_csv, name="template_csv"),
     path("generate/", views.generate_choose_template, name="generate_choose"),
     path("generate/<int:pk>/single/", views.generate_single, name="generate_single"),
+    path("history/", views.history, name="history"),
 ]
