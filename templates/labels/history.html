@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Label History{% endblock %}
+
+{% block content %}
+<div class="p-4 bg-white border rounded">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 mb-0">Label History — {{ workspace.name }}</h1>
+    <div>
+      <a class="btn btn-sm btn-outline-secondary me-2" href="{% url 'labels:history' %}">All</a>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'labels:history' %}?mine=1">My labels</a>
+    </div>
+  </div>
+
+  {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Template</th>
+            <th>Label Serial</th>
+            <th>Generated At</th>
+            <th>Workspace</th>
+            <th>User</th>
+            <th>Preview</th>
+            <th>Download</th>
+          </tr>
+        </thead>
+        <tbody>
+  {% for inst in page_obj.object_list %}
+    <tr>
+      <td>
+        {% if inst.template %}
+          {{ inst.template.name }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>#{{ inst.serial_no|default:"—" }}</td>
+      <td>{{ inst.created_at|date:"Y-m-d H:i:s" }}</td>
+      <td>{{ inst.workspace.name }}</td>
+
+      <td>
+        {% if inst.created_by %}
+          {{ inst.created_by.email }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>
+        {% if inst.png_path %}
+          <a target="_blank"
+             href="{{ MEDIA_URL|default:'/media/' }}{{ inst.png_path }}?v={{ inst.id }}">
+            Open
+          </a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>
+        {% if inst.png_path %}
+          <a class="btn btn-sm btn-outline-primary"
+             href="{{ MEDIA_URL|default:'/media/' }}{{ inst.png_path }}?v={{ inst.id }}"
+             download>
+            Download
+          </a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="7" class="text-muted text-center">
+        No labels generated yet in this workspace.
+      </td>
+    </tr>
+  {% endfor %}
+</tbody>
+      </table>
+    </div>
+
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.mine %}&mine={{ request.GET.mine }}{% endif %}">Prev</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Prev</span></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.mine %}&mine={{ request.GET.mine }}{% endif %}">Next</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% else %}
+    <p class="text-muted mb-0">No labels generated yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
