@@ -63,7 +63,29 @@ class LabelInstance(models.Model):
     data = models.JSONField()  # actual values used to render this label
     pdf_path = models.CharField(max_length=255, blank=True)
     png_path = models.CharField(max_length=255, blank=True)
+    serial_no = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["workspace", "serial_no"], name="uq_label_serial_per_workspace")
+        ]
+        ordering = ["-created_at", "-id"]
 
     def __str__(self):
-        sku = self.data.get("sku") if isinstance(self.data, dict) else None
-        return f"{self.template.name} · {sku or 'label'}"
+        return f"[{self.workspace_id}] #{self.serial_no or '-'} {self.template.name if self.template else 'Template'}"
+
+    def assign_serial_if_needed(self):
+        if self.serial_no is not None:
+            return
+        # allocate next serial number within the same workspace
+        last = LabelInstance.objects.filter(workspace=self.workspace).aggregate(m=Max("serial_no"))["m"]
+        self.serial_no = (last or 0) + 1
+
+    def save(self, *args, **kwargs):
+        # ensure serial_no set safely
+        if self.pk is None and self.serial_no is None:
+            with transaction.atomic():
+                self.assign_serial_if_needed()
+                super().save(*args, **kwargs)
+            return
+        return super().save(*args, **kwargs)
