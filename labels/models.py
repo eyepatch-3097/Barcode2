@@ -1,5 +1,6 @@
 # labels/models.py
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Max
 from django.conf import settings
 from workspaces.models import Workspace
 
